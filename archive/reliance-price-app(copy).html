@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reliance PE Price Explorer</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&f[]=zodiak@500,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root, [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2rem);
+      --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem; --space-12: 3rem; --space-16: 4rem;
+      --color-bg:#f7f6f2; --color-surface:#f9f8f5; --color-surface-2:#fbfbf9; --color-surface-offset:#f3f0ec; --color-border:#d4d1ca; --color-divider:#dcd9d5;
+      --color-text:#28251d; --color-text-muted:#68665f; --color-text-faint:#9e9b94; --color-text-inverse:#f9f8f4;
+      --color-primary:#01696f; --color-primary-hover:#0c4e54; --color-primary-highlight:#cedcd8; --color-success:#437a22; --color-warning:#964219;
+      --radius-sm:0.375rem; --radius-md:0.5rem; --radius-lg:0.75rem; --radius-xl:1rem;
+      --shadow-sm:0 1px 2px rgba(34, 31, 24, 0.06); --shadow-md:0 8px 24px rgba(34, 31, 24, 0.08);
+      --font-display:'Zodiak', Georgia, serif; --font-body:'General Sans', Inter, sans-serif;
+    }
+    [data-theme="dark"] {
+      --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#22211f; --color-border:#393836; --color-divider:#262523;
+      --color-text:#e3e0d8; --color-text-muted:#b0ada5; --color-text-faint:#7b786f; --color-text-inverse:#2b2a28;
+      --color-primary:#4f98a3; --color-primary-hover:#227f8b; --color-primary-highlight:#313b3b; --shadow-sm:0 1px 2px rgba(0,0,0,0.2); --shadow-md:0 12px 32px rgba(0,0,0,0.35);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+    body{min-height:100vh;background:var(--color-bg);color:var(--color-text);font:400 var(--text-base)/1.6 var(--font-body)}
+    button,input,select{font:inherit}
+    button{cursor:pointer;border:none}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .app{max-width:1240px;margin:0 auto;padding:var(--space-6)}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);margin-bottom:var(--space-8)}
+    .brand{display:flex;align-items:center;gap:var(--space-3)}
+    .logo{width:38px;height:38px;color:var(--color-primary)}
+    .brand h1{font:700 var(--text-xl)/1.1 var(--font-display)}
+    .brand p{color:var(--color-text-muted);font-size:var(--text-sm)}
+    .theme-toggle{display:grid;place-items:center;width:44px;height:44px;border-radius:999px;background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text)}
+    .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:var(--space-6);margin-bottom:var(--space-6)}
+    .panel{background:var(--color-surface);border:1px solid rgba(40,37,29,.12);border-radius:var(--radius-xl);box-shadow:var(--shadow-sm)}
+    .hero-card{padding:var(--space-6)}
+    .hero-card h2{font:700 clamp(1.8rem,1.3rem + 1.7vw,2.8rem)/1.05 var(--font-display);max-width:15ch;margin-bottom:var(--space-4)}
+    .hero-card p{max-width:60ch;color:var(--color-text-muted)}
+    .controls{padding:var(--space-6);display:grid;gap:var(--space-4)}
+    .actions{display:flex;flex-wrap:wrap;gap:var(--space-3)}
+    .btn{min-height:44px;padding:0.8rem 1rem;border-radius:var(--radius-md);display:inline-flex;align-items:center;justify-content:center;gap:.5rem;transition:180ms ease;background:var(--color-surface-2);color:var(--color-text);border:1px solid var(--color-border)}
+    .btn.primary{background:var(--color-primary);color:var(--color-text-inverse);border-color:transparent}
+    .btn.primary:hover{background:var(--color-primary-hover)}
+    .btn:hover{transform:translateY(-1px)}
+    .input-file{position:relative;overflow:hidden}
+    .input-file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .meta-grid,.kpi-grid,.filter-grid,.result-grid{display:grid;gap:var(--space-4)}
+    .meta-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:var(--space-6)}
+    .kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:var(--space-6)}
+    .card{padding:var(--space-5);background:var(--color-surface);border:1px solid rgba(40,37,29,.12);border-radius:var(--radius-lg)}
+    .eyebrow{font-size:var(--text-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-faint);margin-bottom:var(--space-2)}
+    .value{font-size:var(--text-lg);font-weight:700}
+    .muted{color:var(--color-text-muted)}
+    .section{margin-bottom:var(--space-6)}
+    .section-head{display:flex;justify-content:space-between;gap:var(--space-4);align-items:end;margin-bottom:var(--space-4)}
+    .section-head h3{font-size:var(--text-lg);line-height:1.2}
+    .filter-wrap{padding:var(--space-5)}
+    .filter-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    label{display:grid;gap:var(--space-2);font-size:var(--text-sm);font-weight:600}
+    select,input[type="search"]{min-height:44px;padding:.8rem .9rem;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text)}
+    .result-grid{grid-template-columns:1.1fr .9fr}
+    .price-box{padding:var(--space-6)}
+    .price{font-size:clamp(2rem,1.2rem + 2vw,3.2rem);font-weight:700;line-height:1;color:var(--color-primary);margin:var(--space-3) 0}
+    .chips{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3)}
+    .chip{padding:.45rem .7rem;border-radius:999px;background:var(--color-primary-highlight);color:var(--color-primary);font-size:var(--text-xs);font-weight:700}
+    .table-wrap{overflow:auto;border-top:1px solid var(--color-divider)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:.9rem .8rem;text-align:left;border-bottom:1px solid var(--color-divider);white-space:nowrap;font-size:var(--text-sm)}
+    th{position:sticky;top:0;background:var(--color-surface-2);z-index:1}
+    .status{padding:var(--space-3) var(--space-4);background:var(--color-surface-offset);border-radius:var(--radius-md);color:var(--color-text-muted);font-size:var(--text-sm)}
+    .empty{padding:var(--space-8);text-align:center;color:var(--color-text-muted)}
+    .footer-note{font-size:var(--text-sm);color:var(--color-text-muted)}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)}
+    @media (max-width: 980px){.hero,.result-grid,.meta-grid,.kpi-grid,.filter-grid,.two-col{grid-template-columns:1fr 1fr}.meta-grid,.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width: 680px){.app{padding:var(--space-4)}.topbar,.section-head{flex-direction:column;align-items:flex-start}.hero,.result-grid,.meta-grid,.kpi-grid,.filter-grid,.two-col{grid-template-columns:1fr}.brand h1{font-size:1.45rem}}
+  </style>
+</head>
+<body>
+  <a href="#main" class="sr-only">Skip to content</a>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 64 64" fill="none" aria-label="Reliance PE Price Explorer logo">
+          <rect x="8" y="10" width="20" height="44" rx="8" stroke="currentColor" stroke-width="4"></rect>
+          <path d="M20 22h24c6.627 0 12 5.373 12 12s-5.373 12-12 12H20" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path>
+          <circle cx="21" cy="32" r="3" fill="currentColor"></circle>
+        </svg>
+        <div>
+          <h1>Reliance PE Price Explorer</h1>
+          <p>Upload the workbook, refresh the parser, and query prices by state and grade.</p>
+        </div>
+      </div>
+      <button class="theme-toggle" data-theme-toggle aria-label="Switch theme"></button>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <article class="panel hero-card">
+          <div class="eyebrow">Workbook-driven app</div>
+          <h2>Read pricing tables even when headers shift across annexures.</h2>
+          <p>This app scans the Ex-Works sheet for every table, captures the reference text above it, normalizes grades into one searchable dataset, and updates results whenever a new Excel file is uploaded and refreshed.</p>
+        </article>
+        <aside class="panel controls">
+          <div>
+            <div class="eyebrow">Source workbook</div>
+            <div id="fileName" class="value">No file loaded</div>
+            <p id="statusText" class="muted">Upload an .xlsx file to begin.</p>
+          </div>
+          <div class="actions">
+            <label class="btn primary input-file">Upload workbook<input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm" /></label>
+            <button id="refreshBtn" class="btn">Refresh data</button>
+            <button id="loadSampleBtn" class="btn">Load bundled demo</button>
+          </div>
+          <div class="status" id="statusBox">Parser idle.</div>
+        </aside>
+      </section>
+
+      <section class="meta-grid" aria-label="Document metadata">
+        <div class="card"><div class="eyebrow">Date line</div><div class="value" id="metaDate">—</div></div>
+        <div class="card"><div class="eyebrow">Reference</div><div class="value" id="metaRef">—</div></div>
+        <div class="card"><div class="eyebrow">Annexure</div><div class="value" id="metaAnnexure">—</div></div>
+        <div class="card"><div class="eyebrow">Current section</div><div class="value" id="metaSection">—</div></div>
+      </section>
+
+      <section class="kpi-grid" aria-label="Dataset summary">
+        <div class="card"><div class="eyebrow">Tables detected</div><div class="value" id="kpiTables">0</div></div>
+        <div class="card"><div class="eyebrow">Price rows</div><div class="value" id="kpiRows">0</div></div>
+        <div class="card"><div class="eyebrow">States</div><div class="value" id="kpiStates">0</div></div>
+        <div class="card"><div class="eyebrow">Grades</div><div class="value" id="kpiGrades">0</div></div>
+      </section>
+
+      <section class="panel section filter-wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Filters</div>
+            <h3>Find the latest price</h3>
+          </div>
+          <p class="footer-note">Tip: choose category first when the same grade name appears in multiple annexures.</p>
+        </div>
+        <div class="filter-grid">
+          <label>Category
+            <select id="categorySelect"><option value="">All categories</option></select>
+          </label>
+          <label>State
+            <select id="stateSelect"><option value="">Select state</option></select>
+          </label>
+          <label>Material grade
+            <select id="gradeSelect"><option value="">Select grade</option></select>
+          </label>
+          <label>Search pricing zone
+            <input id="zoneSearch" type="search" placeholder="e.g. Bengaluru" />
+          </label>
+        </div>
+      </section>
+
+      <section class="result-grid section">
+        <article class="panel price-box">
+          <div class="eyebrow">Selected price</div>
+          <div id="selectedTitle" class="value">Choose a state and grade</div>
+          <div id="selectedPrice" class="price">—</div>
+          <p id="selectedContext" class="muted">The app will display the matching zone, category, and reference details here.</p>
+          <div id="selectedChips" class="chips"></div>
+        </article>
+        <article class="panel price-box">
+          <div class="eyebrow">Referenced details</div>
+          <div class="two-col">
+            <div>
+              <p class="muted">Document line</p>
+              <div id="detailDocLine" class="value">—</div>
+            </div>
+            <div>
+              <p class="muted">Price basis</p>
+              <div id="detailBasis" class="value">—</div>
+            </div>
+          </div>
+          <div style="margin-top:1rem">
+            <p class="muted">Table notes</p>
+            <div id="detailNotes">—</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel section">
+        <div class="section-head" style="padding:1.25rem 1.25rem 0 1.25rem">
+          <div>
+            <div class="eyebrow">Matches</div>
+            <h3>Rows behind the selection</h3>
+          </div>
+          <p class="footer-note" id="matchCount">0 matching rows</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Zone</th>
+                <th>State</th>
+                <th>Grade</th>
+                <th>Price</th>
+                <th>Date</th>
+                <th>Reference</th>
+                <th>Annexure</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody">
+              <tr><td colspan="8" class="empty">Upload a workbook to populate the dataset.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      workbookName: '',
+      sourceBuffer: null,
+      tables: [],
+      records: [],
+      filtered: []
+    };
+
+    const els = {
+      fileInput: document.getElementById('fileInput'),
+      refreshBtn: document.getElementById('refreshBtn'),
+      loadSampleBtn: document.getElementById('loadSampleBtn'),
+      fileName: document.getElementById('fileName'),
+      statusText: document.getElementById('statusText'),
+      statusBox: document.getElementById('statusBox'),
+      categorySelect: document.getElementById('categorySelect'),
+      stateSelect: document.getElementById('stateSelect'),
+      gradeSelect: document.getElementById('gradeSelect'),
+      zoneSearch: document.getElementById('zoneSearch'),
+      metaDate: document.getElementById('metaDate'),
+      metaRef: document.getElementById('metaRef'),
+      metaAnnexure: document.getElementById('metaAnnexure'),
+      metaSection: document.getElementById('metaSection'),
+      kpiTables: document.getElementById('kpiTables'),
+      kpiRows: document.getElementById('kpiRows'),
+      kpiStates: document.getElementById('kpiStates'),
+      kpiGrades: document.getElementById('kpiGrades'),
+      selectedTitle: document.getElementById('selectedTitle'),
+      selectedPrice: document.getElementById('selectedPrice'),
+      selectedContext: document.getElementById('selectedContext'),
+      selectedChips: document.getElementById('selectedChips'),
+      detailDocLine: document.getElementById('detailDocLine'),
+      detailBasis: document.getElementById('detailBasis'),
+      detailNotes: document.getElementById('detailNotes'),
+      resultsBody: document.getElementById('resultsBody'),
+      matchCount: document.getElementById('matchCount')
+    };
+
+    function setThemeButton() {
+      const btn = document.querySelector('[data-theme-toggle]');
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      btn.innerHTML = isDark
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    }
+    (function initTheme(){
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', preferred);
+      setThemeButton();
+      document.querySelector('[data-theme-toggle]').addEventListener('click', () => {
+        const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        setThemeButton();
+      });
+    })();
+
+    function normalizeCell(value) {
+      if (value === undefined || value === null) return '';
+      return String(value).replace(/\s+/g, ' ').replace(/[“”]/g, '"').trim();
+    }
+
+    function parseMetaLine(text) {
+      const line = normalizeCell(text);
+      const date = (line.match(/Date\s*:\s*([^R]+?)(?=Ref\s*:|$)/i) || [,''])[1].trim().replace(/\s+,/g, ',');
+      const ref = (line.match(/Ref\s*:\s*([^A]+?\/?\d[\d\-\/]*)/i) || [,''])[1].trim();
+      const annexure = (line.match(/Annexure\s*[-:]?\s*([A-Z0-9\-]+)/i) || [,''])[1].trim();
+      let section = '';
+      const sectionMatch = line.match(/Domestic Prices for (.+?)\.?\s*Annexure/i) || line.match(/Deemed Export Prices for (.+?)\.?\s*Annexure/i);
+      if (sectionMatch) section = sectionMatch[1].trim();
+      return { line, date, ref, annexure, section };
+    }
+
+    function inferCategory(meta, grades) {
+      const line = `${meta.section} ${meta.line} ${grades.join(' ')}`.toUpperCase();
+      if (line.includes('LLDPE')) return 'LLDPE';
+      if (line.includes('LDPE')) return 'LDPE';
+      if (line.includes('HDPE')) return 'HDPE';
+      if (line.includes('SEZ')) return 'SEZ';
+      return 'Other';
+    }
+
+    function rowLooksLikeHeader(row) {
+      const cells = row.map(normalizeCell);
+      return cells.includes('Sr.No.') && cells.includes('Pricing Zone') && (cells.includes('State') || cells.includes('SEZ Location'));
+    }
+
+    function parseWorkbook(arrayBuffer, workbookName = 'Workbook') {
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames.find(n => /ex-works/i.test(n)) || workbook.SheetNames[0];
+      if (!sheetName) throw new Error('No sheet found in workbook.');
+      const ws = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      const tables = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] || [];
+        if (!rowLooksLikeHeader(row)) continue;
+        const header = row.map(normalizeCell);
+        const metaLine = parseMetaLine(normalizeCell((rows[i - 3] || []).find(v => normalizeCell(v)) || (rows[i - 4] || []).find(v => normalizeCell(v)) || ''));
+        const basisLine = normalizeCell((rows[i - 2] || []).find(v => normalizeCell(v)) || (rows[i - 1] || []).find(v => normalizeCell(v)) || '');
+        const notes = [];
+        if (normalizeCell((rows[i - 1] || []).join(' '))) notes.push(normalizeCell((rows[i - 1] || []).join(' ')));
+        const zoneKey = header.includes('Pricing Zone') ? 'Pricing Zone' : header.find(h => /Zone/i.test(h));
+        const stateKey = header.includes('State') ? 'State' : header.find(h => /Location/i.test(h)) || 'State';
+        const gradeHeaders = header.slice(3).filter(Boolean);
+        const category = inferCategory(metaLine, gradeHeaders);
+        const table = { sheetName, startRow: i + 1, meta: metaLine, basisLine, notes: notes.join(' | '), zoneKey, stateKey, gradeHeaders, category, rows: [] };
+        for (let j = i + 1; j < rows.length; j++) {
+          const r = rows[j] || [];
+          const first = normalizeCell(r[0]);
+          if (!first && r.every(v => !normalizeCell(v))) {
+            if ((rows[j + 1] || []).every(v => !normalizeCell(v))) break;
+            continue;
+          }
+          if (/^(Date|Eff\.? Date)\s*:/i.test(normalizeCell(r.find(v => normalizeCell(v))))) break;
+          if (rowLooksLikeHeader(r)) break;
+          if (first === '<--- Rs./MT --->' || first === '<--- $/MT --->') continue;
+          if (!/^\d+$/.test(first)) continue;
+          const zone = normalizeCell(r[1]);
+          const st = normalizeCell(r[2]);
+          if (!zone) continue;
+          const gradeValues = {};
+          gradeHeaders.forEach((g, idx) => {
+            const raw = normalizeCell(r[idx + 3]);
+            if (raw !== '') gradeValues[g] = raw;
+          });
+          table.rows.push({ srNo: first, zone, state: st, gradeValues });
+        }
+        if (table.rows.length) tables.push(table);
+      }
+      const records = [];
+      tables.forEach((table, ti) => {
+        table.rows.forEach(row => {
+          Object.entries(row.gradeValues).forEach(([grade, price]) => {
+            records.push({
+              tableIndex: ti,
+              workbookName,
+              sheetName: table.sheetName,
+              category: table.category,
+              section: table.meta.section || table.category,
+              date: table.meta.date,
+              ref: table.meta.ref,
+              annexure: table.meta.annexure,
+              docLine: table.meta.line,
+              basisLine: table.basisLine,
+              notes: table.notes,
+              zone: row.zone,
+              state: row.state,
+              srNo: row.srNo,
+              grade,
+              price,
+            });
+          });
+        });
+      });
+      return { workbook, sheetName, tables, records };
+    }
+
+    function formatNumber(num) {
+      if (num === undefined || num === null || num === '') return '—';
+      const value = Number(String(num).replace(/,/g, ''));
+      return Number.isFinite(value) ? value.toLocaleString('en-IN') : num;
+    }
+
+    function uniqueSorted(arr) {
+      return [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    }
+
+    function updateSummary() {
+      els.kpiTables.textContent = state.tables.length.toLocaleString('en-IN');
+      els.kpiRows.textContent = state.records.length.toLocaleString('en-IN');
+      els.kpiStates.textContent = uniqueSorted(state.records.map(r => r.state)).length.toLocaleString('en-IN');
+      els.kpiGrades.textContent = uniqueSorted(state.records.map(r => r.grade)).length.toLocaleString('en-IN');
+      const first = state.records[0];
+      els.metaDate.textContent = first?.date || '—';
+      els.metaRef.textContent = first?.ref || '—';
+      els.metaAnnexure.textContent = first?.annexure || '—';
+      els.metaSection.textContent = first?.section || '—';
+    }
+
+    function populateFilters() {
+      const categories = uniqueSorted(state.records.map(r => r.category));
+      const states = uniqueSorted(state.records.map(r => r.state));
+      const grades = uniqueSorted(state.records.map(r => r.grade));
+      fillSelect(els.categorySelect, categories, 'All categories', els.categorySelect.value);
+      fillSelect(els.stateSelect, states, 'Select state', els.stateSelect.value);
+      fillSelect(els.gradeSelect, grades, 'Select grade', els.gradeSelect.value);
+    }
+
+    function fillSelect(select, values, placeholder, keepValue = '') {
+      const current = keepValue && values.includes(keepValue) ? keepValue : '';
+      select.innerHTML = `<option value="">${placeholder}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      select.value = current;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function applyFilters() {
+      const category = els.categorySelect.value;
+      const selectedState = els.stateSelect.value;
+      const selectedGrade = els.gradeSelect.value;
+      const zoneTerm = els.zoneSearch.value.trim().toLowerCase();
+      let rows = [...state.records];
+      if (category) rows = rows.filter(r => r.category === category);
+      if (selectedState) rows = rows.filter(r => r.state === selectedState);
+      if (selectedGrade) rows = rows.filter(r => r.grade === selectedGrade);
+      if (zoneTerm) rows = rows.filter(r => r.zone.toLowerCase().includes(zoneTerm));
+      state.filtered = rows;
+      renderResults();
+    }
+
+    function renderResults() {
+      els.matchCount.textContent = `${state.filtered.length.toLocaleString('en-IN')} matching rows`;
+      if (!state.filtered.length) {
+        els.resultsBody.innerHTML = '<tr><td colspan="8" class="empty">No matching price rows found for the current filter.</td></tr>';
+        els.selectedTitle.textContent = 'No match found';
+        els.selectedPrice.textContent = '—';
+        els.selectedContext.textContent = 'Try changing the category, state, grade, or pricing zone search.';
+        els.selectedChips.innerHTML = '';
+        els.detailDocLine.textContent = '—';
+        els.detailBasis.textContent = '—';
+        els.detailNotes.textContent = '—';
+        return;
+      }
+      els.resultsBody.innerHTML = state.filtered.slice(0, 300).map(r => `
+        <tr>
+          <td>${escapeHtml(r.category)}</td>
+          <td>${escapeHtml(r.zone)}</td>
+          <td>${escapeHtml(r.state)}</td>
+          <td>${escapeHtml(r.grade)}</td>
+          <td>${formatNumber(r.price)}</td>
+          <td>${escapeHtml(r.date || '—')}</td>
+          <td>${escapeHtml(r.ref || '—')}</td>
+          <td>${escapeHtml(r.annexure || '—')}</td>
+        </tr>`).join('');
+      const top = state.filtered[0];
+      els.selectedTitle.textContent = `${top.grade} in ${top.state}`;
+      els.selectedPrice.textContent = `₹ ${formatNumber(top.price)}`;
+      els.selectedContext.textContent = `${top.zone} · ${top.category} · ${top.section || 'Price section'}`;
+      els.selectedChips.innerHTML = [top.state, top.zone, top.annexure || 'No annexure', top.sheetName].filter(Boolean).map(v => `<span class="chip">${escapeHtml(v)}</span>`).join('');
+      els.detailDocLine.textContent = top.docLine || '—';
+      els.detailBasis.textContent = top.basisLine || '—';
+      els.detailNotes.textContent = top.notes || 'No extra notes captured.';
+      els.metaDate.textContent = top.date || '—';
+      els.metaRef.textContent = top.ref || '—';
+      els.metaAnnexure.textContent = top.annexure || '—';
+      els.metaSection.textContent = top.section || '—';
+    }
+
+    async function parseCurrentBuffer() {
+      if (!state.sourceBuffer) {
+        updateStatus('Upload a workbook first.', true);
+        return;
+      }
+      try {
+        updateStatus('Parsing workbook and rebuilding price tables...');
+        const { tables, records } = parseWorkbook(state.sourceBuffer, state.workbookName);
+        state.tables = tables;
+        state.records = records;
+        updateSummary();
+        populateFilters();
+        applyFilters();
+        els.fileName.textContent = state.workbookName;
+        els.statusText.textContent = `Loaded ${tables.length} tables and ${records.length.toLocaleString('en-IN')} grade-price rows.`;
+        updateStatus('Refresh complete. New prices are ready.');
+      } catch (error) {
+        console.error(error);
+        updateStatus(error.message || 'Could not parse the workbook.', true);
+      }
+    }
+
+    function updateStatus(message, isError = false) {
+      els.statusBox.textContent = message;
+      els.statusBox.style.color = isError ? 'var(--color-warning)' : 'var(--color-text-muted)';
+    }
+
+    async function loadSampleWorkbook() {
+      const response = await fetch('./16-04-2026-PE-Reliance.xlsx');
+      if (!response.ok) throw new Error('Bundled demo workbook not found.');
+      state.sourceBuffer = await response.arrayBuffer();
+      state.workbookName = '16-04-2026-PE-Reliance.xlsx';
+      await parseCurrentBuffer();
+    }
+
+    els.fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      state.workbookName = file.name;
+      state.sourceBuffer = await file.arrayBuffer();
+      els.fileName.textContent = file.name;
+      els.statusText.textContent = 'Workbook uploaded. Press refresh to rebuild the dataset.';
+      updateStatus('Workbook loaded in memory. Press refresh to parse.');
+    });
+    els.refreshBtn.addEventListener('click', parseCurrentBuffer);
+    els.loadSampleBtn.addEventListener('click', async () => {
+      try { await loadSampleWorkbook(); } catch (e) { updateStatus(e.message, true); }
+    });
+    [els.categorySelect, els.stateSelect, els.gradeSelect].forEach(el => el.addEventListener('change', applyFilters));
+    els.zoneSearch.addEventListener('input', applyFilters);
+  </script>
+</body>
+</html>

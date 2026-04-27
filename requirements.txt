@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pandas
+openpyxl
+beautifulsoup4
+requests
+gunicorn
