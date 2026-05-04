@@ -26,7 +26,7 @@
 
     <nav class="main-nav">
         <div class="nav-container">
-            <div class="nav-logo">Material Price Explorer</div>
+            <div class="nav-logo">Zero-based Costing</div>
             <div class="nav-links">
                 <button class="main-tab-btn active" data-main-tab="executive">Executive View</button>
                 <button class="main-tab-btn" data-main-tab="skus">SKUs</button>
@@ -55,9 +55,23 @@
                 <button class="sub-tab-btn active" data-sub-tab="dashboard">Dashboard</button>
                 <button class="sub-tab-btn" data-sub-tab="zbc-rates">ZBC Rates</button>
                 <button class="sub-tab-btn" data-sub-tab="roster">Material Roster</button>
+                <button class="sub-tab-btn" data-sub-tab="packaging-cost">Packaging Cost</button>
+                <button class="sub-tab-btn" data-sub-tab="freight-cost">Freight Cost</button>
+                <button class="sub-tab-btn" data-sub-tab="conversion-cost">Conversion Cost</button>
             </nav>
             <div class="sub-panel-container">
                 <div id="dashboard-panel" class="sub-panel active">
+                    <div class="sku-selection-bar" style="margin-bottom: 1.5rem;">
+                        <div class="field">
+                            <label>Select Plant</label>
+                            <select id="dashboardPlantSelector" class="sku-dropdown">
+                                <option value="Haldia">Haldia</option>
+                                <option value="Kandla">Kandla</option>
+                                <option value="Jaipur">Jaipur</option>
+                                <option value="KP">KP</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="dashboard-grid">
                         <div class="dashboard-card table-card">
                             <h3>SKU Performance Summary</h3>
@@ -79,7 +93,42 @@
                     </div>
                 </div>
                 <div id="roster-panel" class="sub-panel">
+                    <div class="sku-selection-bar" style="margin-bottom: 1.5rem;">
+                        <div class="field">
+                            <label>Filter by SKU</label>
+                            <select class="sku-cost-selector" id="rosterSkuSelector">
+                                <option value="All">All SKUs</option>
+                            </select>
+                        </div>
+                    </div>
                     <div id="materialRosterContainer" class="table-container">
+                        <!-- Table will be injected here -->
+                    </div>
+                </div>
+                <div id="packaging-cost-panel" class="sub-panel">
+                    <div class="sku-selection-bar" style="margin-bottom: 1.5rem;">
+                        <div class="field">
+                            <label>Select SKU</label>
+                            <select class="sku-cost-selector" id="packagingSkuSelector"></select>
+                        </div>
+                    </div>
+                    <div id="packagingCostContainer" class="table-container">
+                        <!-- Table will be injected here -->
+                    </div>
+                </div>
+                <div id="freight-cost-panel" class="sub-panel">
+                    <div class="sku-selection-bar" style="margin-bottom: 1.5rem;">
+                        <div class="field">
+                            <label>Select SKU</label>
+                            <select class="sku-cost-selector" id="freightSkuSelector"></select>
+                        </div>
+                    </div>
+                    <div id="freightCostContainer" class="table-container">
+                        <!-- Table will be injected here -->
+                    </div>
+                </div>
+                <div id="conversion-cost-panel" class="sub-panel">
+                    <div id="conversionCostContainer" class="table-container">
                         <!-- Table will be injected here -->
                     </div>
                 </div>
@@ -93,16 +142,28 @@
             </header>
 
             <div class="sku-selection-bar">
-                <div class="field">
-                    <label>Select SKU Sheet</label>
-                    <div class="search-container">
-                        <select id="skuSelector" class="sku-dropdown">
-                            <option value="Laminate">Laminate</option>
-                            <option value="SKU 2">SKU 2</option>
-                            <option value="SKU 3">SKU 3</option>
-                            <option value="SKU 4">SKU 4</option>
-                            <option value="SKU 5">SKU 5</option>
+                <div class="field-row" style="display: flex; gap: 1.5rem; align-items: flex-end;">
+                    <div class="field" style="flex: 1;">
+                        <label>Select Plant</label>
+                        <select id="plantSelector" class="sku-dropdown">
+                            <option value="Haldia">Haldia</option>
+                            <option value="Kandla">Kandla</option>
+                            <option value="Jaipur">Jaipur</option>
+                            <option value="KP">KP</option>
                         </select>
+                    </div>
+                    <div class="field" style="flex: 1;">
+                        <label>Select SKU Sheet</label>
+                        <div class="search-container">
+                            <select id="skuSelector" class="sku-dropdown">
+                                <option value="Laminate">Laminate</option>
+                                <option value="HBC Palm 1L">HBC Palm 1L</option>
+                                <option value="HBC Palm 0.5L">HBC Palm 0.5L</option>
+                                <option value="HBC SBO 1L">HBC SBO 1L</option>
+                                <option value="H&T SBO 1L">H&T SBO 1L</option>
+                                <option value="H&T KGMO 1L">H&T KGMO 1L</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -111,15 +172,30 @@
 
             <div id="skuContainersContainer">
                 <div id="container-Laminate" class="sku-panel active"></div>
-                <div id="container-SKU 2" class="sku-panel"></div>
-                <div id="container-SKU 3" class="sku-panel"></div>
-                <div id="container-SKU 4" class="sku-panel"></div>
-                <div id="container-SKU 5" class="sku-panel"></div>
+                <div id="container-HBC Palm 1L" class="sku-panel"></div>
+                <div id="container-HBC Palm 0.5L" class="sku-panel"></div>
+                <div id="container-HBC SBO 1L" class="sku-panel"></div>
+                <div id="container-H&T SBO 1L" class="sku-panel"></div>
+                <div id="container-H&T KGMO 1L" class="sku-panel"></div>
             </div>
         </div>
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
+
+    <div id="materialModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Material Price History</h3>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="chart-container" style="position: relative; height:400px; width:100%">
+                    <canvas id="materialHistoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="main.js"></script>
 </body>

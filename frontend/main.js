@@ -50,7 +50,7 @@ class LaminateCostingForm {
         ];
 
         this.renderBaseHTML();
-
+        
         this.els = {
             tableBody: this.section.querySelector('tbody'),
             summary: {
@@ -60,6 +60,7 @@ class LaminateCostingForm {
                 filmCost: this.section.querySelector('#filmCost'),
                 ohPct: this.section.querySelector('#ohPct'),
                 ohCost: this.section.querySelector('#ohCost'),
+                conversionCost: this.section.querySelector('#conversionCostInput'),
                 totalFilmCost: this.section.querySelector('#totalFilmCostDisplay')
             }
         };
@@ -88,6 +89,7 @@ class LaminateCostingForm {
             row.pct = defaults[i];
 
             // Reset UI
+            rowEl.querySelector('.row-supplier').value = '';
             rowEl.querySelector('.row-location').value = '';
             rowEl.querySelector('.row-state').value = '';
             rowEl.querySelector('.row-zone').value = '';
@@ -103,6 +105,7 @@ class LaminateCostingForm {
 
         this.els.summary.wastagePct.value = 4;
         this.els.summary.ohPct.value = 10;
+        this.els.summary.conversionCost.value = (2 + Math.random() * 3).toFixed(2);
         
         this.recalculate();
     }
@@ -112,6 +115,7 @@ class LaminateCostingForm {
             rows: this.rows.map((row, i) => {
                 const rowEl = this.section.querySelector(`tr[data-index="${i}"]`);
                 return {
+                    supplier: rowEl.querySelector('.row-supplier').value,
                     location: rowEl.querySelector('.row-location').value,
                     state: rowEl.querySelector('.row-state').value,
                     zone: rowEl.querySelector('.row-zone').value,
@@ -122,7 +126,8 @@ class LaminateCostingForm {
             }),
             summary: {
                 wastagePct: parseFloat(this.els.summary.wastagePct.value) || 0,
-                ohPct: parseFloat(this.els.summary.ohPct.value) || 0
+                ohPct: parseFloat(this.els.summary.ohPct.value) || 0,
+                conversionCost: parseFloat(this.els.summary.conversionCost.value) || 0
             }
         };
     }
@@ -134,6 +139,7 @@ class LaminateCostingForm {
             if (!rowEl) return;
 
             // Set inputs and trigger population
+            rowEl.querySelector('.row-supplier').value = rowData.supplier || '';
             rowEl.querySelector('.row-location').value = rowData.location;
             this.updateRowCascadingFilters(i, true);
             
@@ -155,6 +161,7 @@ class LaminateCostingForm {
         if (data.summary) {
             this.els.summary.wastagePct.value = data.summary.wastagePct;
             this.els.summary.ohPct.value = data.summary.ohPct;
+            this.els.summary.conversionCost.value = data.summary.conversionCost || (2 + Math.random() * 3).toFixed(2);
         }
         this.recalculate();
     }
@@ -167,7 +174,7 @@ class LaminateCostingForm {
         section.className = 'pricing-section laminate-costing';
         section.innerHTML = `
             <div class="section-header">
-                <h2 class="section-title">Film Cost</h2>
+                <h2 class="section-title">${this.sku} Film Cost</h2>
                 <button class="btn-secondary btn-small row-reset">Reset Sheet</button>
             </div>
             
@@ -176,6 +183,7 @@ class LaminateCostingForm {
                     <thead>
                         <tr>
                             <th style="width: 130px;">Polymer</th>
+                            <th style="width: 140px;">Supplier Name</th>
                             <th style="width: 140px;">Supply Loc.</th>
                             <th style="width: 120px;">State</th>
                             <th style="width: 120px;">Zone</th>
@@ -190,6 +198,7 @@ class LaminateCostingForm {
                         ${this.rows.map((row, i) => `
                             <tr data-index="${i}">
                                 <td style="font-size: 0.85rem;"><b>${row.name}</b></td>
+                                <td><select class="row-supplier select-small" style="width: 100%;"><option value="">-</option></select></td>
                                 <td><select class="row-location select-small" style="width: 100%;"><option value="">-</option></select></td>
                                 <td><select class="row-state select-small" style="width: 100%;"><option value="">-</option></select></td>
                                 <td><select class="row-zone select-small" style="width: 100%;"><option value="">-</option></select></td>
@@ -243,6 +252,10 @@ class LaminateCostingForm {
                     <span>Overhead Cost</span>
                     <span id="ohCost">0.00</span>
                 </div>
+                <div class="summary-row">
+                    <span>Conversion Cost</span>
+                    <input type="number" id="conversionCostInput" value="${(2 + Math.random() * 3).toFixed(2)}" step="0.1">
+                </div>
                 <div class="summary-row total" style="background: #eab308; color: #1e293b; padding: 0.75rem; border-radius: 6px; border-top: none;">
                     <span>Total Film Cost</span>
                     <span id="totalFilmCostDisplay">0.00</span>
@@ -256,6 +269,7 @@ class LaminateCostingForm {
     initEventListeners() {
         this.section.querySelectorAll('tr[data-index]').forEach(rowEl => {
             const index = rowEl.dataset.index;
+            const supSelect = rowEl.querySelector('.row-supplier');
             const locSelect = rowEl.querySelector('.row-location');
             const stateSelect = rowEl.querySelector('.row-state');
             const zoneSelect = rowEl.querySelector('.row-zone');
@@ -263,6 +277,7 @@ class LaminateCostingForm {
             const dropdown = rowEl.querySelector('.grade-dropdown');
             const refreshBtn = rowEl.querySelector('.row-refresh');
 
+            supSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
             locSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
             stateSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
             zoneSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
@@ -302,7 +317,7 @@ class LaminateCostingForm {
         }
 
 
-        ['wastagePct', 'ohPct'].forEach(id => {
+        ['wastagePct', 'ohPct', 'conversionCost'].forEach(id => {
             this.els.summary[id].addEventListener('input', () => this.recalculate());
         });
 
@@ -326,10 +341,12 @@ class LaminateCostingForm {
         const rowEl = this.section.querySelector(`tr[data-index="${i}"]`);
         const row = this.rows[i];
 
+        const supSelect = rowEl.querySelector('.row-supplier');
         const locSelect = rowEl.querySelector('.row-location');
         const stateSelect = rowEl.querySelector('.row-state');
         const zoneSelect = rowEl.querySelector('.row-zone');
 
+        const selectedSup = supSelect.value;
         const selectedLoc = locSelect.value;
         const selectedState = stateSelect.value;
         const selectedZone = zoneSelect.value;
@@ -341,6 +358,12 @@ class LaminateCostingForm {
         else if (searchMat.includes('HDPE')) searchMat = 'HDPE';
 
         let rowData = allData.filter(d => (d.folder_key || "").toUpperCase() === searchMat);
+
+        // Populate Suppliers (for now same as locations as requested)
+        const suppliers = [...new Set(rowData.map(d => d.location))].sort();
+        supSelect.innerHTML = '<option value="">-</option>' +
+            suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
+        if (suppliers.includes(selectedSup)) supSelect.value = selectedSup;
 
         // Populate Locations
         const locations = [...new Set(rowData.map(d => d.location))].sort();
@@ -467,7 +490,9 @@ class LaminateCostingForm {
 
         const ohPct = parseFloat(this.els.summary.ohPct.value) || 0;
         const ohCost = filmCost * (ohPct / 100);
-        const totalFilmCost = filmCost + ohCost;
+        
+        const conversionCost = parseFloat(this.els.summary.conversionCost.value) || 0;
+        const totalFilmCost = filmCost + ohCost + conversionCost;
 
         this.els.summary.totalBase.textContent = base.toFixed(2);
         this.els.summary.wastageCost.textContent = wastageCost.toFixed(2);
@@ -492,7 +517,7 @@ class FinalLaminateCostForm {
 
         this.data = {
             substrate: { mic: 60, gsm: 58.8, rate: 0, cont: 98 },
-            ink: { gsm: 1.0, rate: 1400, cont: 2 },
+            ink: { gsm: 0, rate: 0, cont: 0, total: 0 },
             wastage: 4,
             packing: 3.00,
             freight: 0,
@@ -514,9 +539,6 @@ class FinalLaminateCostForm {
             if (input.classList.contains('val-mic')) input.value = 60;
             else if (input.classList.contains('val-gsm')) input.value = 58.8;
             else if (input.classList.contains('val-cont')) input.value = 98;
-            else if (input.classList.contains('ink-gsm')) input.value = 1.0;
-            else if (input.classList.contains('ink-rate')) input.value = 1400;
-            else if (input.classList.contains('ink-cont')) input.value = 2;
             else if (input.classList.contains('wastage-pct')) input.value = 4;
             else if (input.classList.contains('packing-val')) input.value = 3.00;
             else if (input.classList.contains('freight-val')) input.value = 0;
@@ -550,7 +572,7 @@ class FinalLaminateCostForm {
         const section = document.createElement('section');
         section.className = 'pricing-section final-cost-section';
         section.innerHTML = `
-            <h2 class="section-title">Final Laminate Cost</h2>
+            <h2 class="section-title">${this.sku} Final Cost</h2>
             <div class="table-container">
                 <table class="final-cost-table">
                     <thead>
@@ -588,16 +610,9 @@ class FinalLaminateCostForm {
                         <tr class="row-ink">
                             <td><b>Ink</b></td>
                             <td class="muted">-</td>
-                            <td><input type="number" class="ink-gsm" value="${this.data.ink.gsm}"></td>
-                            <td style="position: relative;">
-                                <input type="number" class="ink-rate" value="${this.data.ink.rate}">
-                                <div class="info-icon" style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 10px; width: 14px; height: 14px; line-height: 14px;">?
-                                    <div class="tooltip" style="top: 100%; right: 0; left: auto; transform: none; margin-top: 5px;">
-                                        <p>Standard Ink Market Rate (₹/MT).</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td><input type="number" class="ink-cont" value="${this.data.ink.cont}">%</td>
+                            <td class="ink-gsm-display">0.0</td>
+                            <td class="ink-rate-display">0.00</td>
+                            <td class="ink-cont-display">0.0%</td>
                             <td class="inkTotal amt-bold">0.00</td>
                         </tr>
                         <tr class="row-total">
@@ -721,6 +736,11 @@ class FinalLaminateCostForm {
         this.recalculate();
     }
 
+    setInkDetails(details) {
+        this.data.ink = details;
+        this.recalculate();
+    }
+
     recalculate() {
         // Substrate
         const subRateCell = this.section.querySelector('.subRate');
@@ -732,10 +752,11 @@ class FinalLaminateCostForm {
         const subTotal = (this.baseFilmRate * subCont) / 100;
         this.section.querySelector('.subTotal').textContent = subTotal.toFixed(2);
 
-        // Ink
-        const inkRate = parseFloat(this.section.querySelector('.ink-rate').value) || 0;
-        const inkCont = parseFloat(this.section.querySelector('.ink-cont').value) || 0;
-        const inkTotal = (inkRate * inkCont) / 100;
+        // Ink (Now from external InkCostingForm)
+        const inkTotal = this.data.ink.total || 0;
+        this.section.querySelector('.ink-gsm-display').textContent = (this.data.ink.gsm || 0).toFixed(1);
+        this.section.querySelector('.ink-rate-display').textContent = (this.data.ink.rate || 0).toFixed(2);
+        this.section.querySelector('.ink-cont-display').textContent = (this.data.ink.cont || 0).toFixed(1) + '%';
         this.section.querySelector('.inkTotal').textContent = inkTotal.toFixed(2);
 
         // Grand Total
@@ -776,9 +797,102 @@ class FinalLaminateCostForm {
 
 }
 
+class InkCostingForm {
+    constructor(containerId, sku, partnerForm = null) {
+        this.container = document.getElementById(containerId);
+        this.sku = sku;
+        this.partnerForm = partnerForm;
+
+        this.data = {
+            gsm: 1.0,
+            rate: 1400,
+            cont: 2
+        };
+
+        this.renderBaseHTML();
+        this.initEventListeners();
+        this.recalculate();
+    }
+
+    setPartner(partner) {
+        this.partnerForm = partner;
+    }
+
+    getData() {
+        return {
+            gsm: parseFloat(this.section.querySelector('.ink-gsm').value) || 0,
+            rate: parseFloat(this.section.querySelector('.ink-rate').value) || 0,
+            cont: parseFloat(this.section.querySelector('.ink-cont').value) || 0
+        };
+    }
+
+    setData(data) {
+        if (!data) return;
+        this.section.querySelector('.ink-gsm').value = data.gsm;
+        this.section.querySelector('.ink-rate').value = data.rate;
+        this.section.querySelector('.ink-cont').value = data.cont;
+        this.recalculate();
+    }
+
+    renderBaseHTML() {
+        const section = document.createElement('section');
+        section.className = 'pricing-section ink-costing';
+        section.innerHTML = `
+            <div class="section-header">
+                <h2 class="section-title">${this.sku} Ink Cost</h2>
+            </div>
+            <div class="table-container">
+                <table class="costing-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Gsm</th>
+                            <th>Rate (₹/kg)</th>
+                            <th>Cont %</th>
+                            <th style="text-align: right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>Process Ink</b></td>
+                            <td><input type="number" class="ink-gsm" value="${this.data.gsm}" step="0.1"></td>
+                            <td><input type="number" class="ink-rate" value="${this.data.rate}"></td>
+                            <td><input type="number" class="ink-cont" value="${this.data.cont}">%</td>
+                            <td style="text-align: right; font-weight: 700;" class="ink-total-amt">0.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+        this.container.appendChild(section);
+        this.section = section;
+    }
+
+    initEventListeners() {
+        this.section.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', () => this.recalculate());
+        });
+    }
+
+    populateInitialDropdowns() {
+        this.recalculate();
+    }
+
+    recalculate() {
+        const data = this.getData();
+        const total = (data.rate * data.cont) / 100;
+        this.section.querySelector('.ink-total-amt').textContent = total.toFixed(2);
+        
+        if (this.partnerForm) {
+            this.partnerForm.setInkDetails({ ...data, total });
+        }
+    }
+}
+
 // Global state and initialization
-const SKUS = ["Laminate", "SKU 2", "SKU 3", "SKU 4", "SKU 5"];
-let skuForms = {}; // { 'SKU Name': [LaminateForm, FinalForm] }
+const SKUS = ["Laminate", "HBC Palm 1L", "HBC Palm 0.5L", "HBC SBO 1L", "H&T SBO 1L", "H&T KGMO 1L"];
+const PLANTS = ["Haldia", "Kandla", "Jaipur", "KP"];
+let skuForms = {}; // { 'SKU Name': [LaminateForm, InkForm, FinalForm] }
 
 async function fetchData(isRefresh = false) {
     const statusBox = document.getElementById('statusBox');
@@ -806,15 +920,16 @@ async function fetchData(isRefresh = false) {
         if (Object.keys(skuForms).length === 0) {
             SKUS.forEach(sku => {
                 const containerId = `container-${sku}`;
-                // Create costing form first so it appears at the top
+                // Order: Film Cost, Ink Cost, Final Laminate Cost
                 const costingForm = new LaminateCostingForm(containerId, sku);
-                // Create final form second so it appears at the bottom
+                const inkForm = new InkCostingForm(containerId, sku);
                 const finalForm = new FinalLaminateCostForm(containerId, sku);
                 
                 // Link them
                 costingForm.setPartner(finalForm);
+                inkForm.setPartner(finalForm);
                 
-                skuForms[sku] = [costingForm, finalForm];
+                skuForms[sku] = [costingForm, inkForm, finalForm];
             });
         }
 
@@ -838,7 +953,13 @@ async function fetchData(isRefresh = false) {
         let history = localStorage.getItem('skuRateHistory');
 
         Object.values(skuForms).forEach(forms => {
-            forms.forEach(f => f.populateInitialDropdowns());
+            forms.forEach(f => {
+                if (typeof f.populateInitialDropdowns === 'function') {
+                    f.populateInitialDropdowns();
+                } else {
+                    console.warn("Form missing populateInitialDropdowns:", f);
+                }
+            });
         });
         
         // Load saved state for all SKUs
@@ -848,7 +969,8 @@ async function fetchData(isRefresh = false) {
         SKUS.forEach(sku => {
             if (parsed[sku]) {
                 skuForms[sku][0].setData(parsed[sku].laminate);
-                skuForms[sku][1].setData(parsed[sku].final);
+                if (parsed[sku].ink) skuForms[sku][1].setData(parsed[sku].ink);
+                skuForms[sku][2].setData(parsed[sku].final);
             } else {
                 // Task 1: Apply default values if no record exists
                 applyDefaultValues(sku);
@@ -918,6 +1040,21 @@ document.querySelectorAll('.sub-tab-btn').forEach(btn => {
         if (subTab === 'roster') {
             renderMaterialRoster();
         }
+
+        // If Packaging Cost tab, render it
+        if (subTab === 'packaging-cost') {
+            renderPackagingCost();
+        }
+
+        // If Freight Cost tab, render it
+        if (subTab === 'freight-cost') {
+            renderFreightCost();
+        }
+
+        // If Conversion Cost tab, render it
+        if (subTab === 'conversion-cost') {
+            renderConversionCost();
+        }
     });
 });
 
@@ -927,10 +1064,11 @@ function renderZBCRates() {
 
     const descriptions = {
         "Laminate": "A common surface material in furniture and interior design, laminates are flexible and strong",
-        "SKU 2": "Description of SKU 2",
-        "SKU 3": "Description of SKU 3",
-        "SKU 4": "Description of SKU 4",
-        "SKU 5": "Description of SKU 5"
+        "HBC Palm 1L": "High-quality Palm oil laminate (1L)",
+        "HBC Palm 0.5L": "High-quality Palm oil laminate (0.5L)",
+        "HBC SBO 1L": "Soyabean Oil laminate (1L)",
+        "H&T SBO 1L": "H&T brand Soyabean Oil laminate (1L)",
+        "H&T KGMO 1L": "H&T brand Kachi Ghani Mustard Oil laminate (1L)"
     };
 
     container.innerHTML = `
@@ -946,7 +1084,7 @@ function renderZBCRates() {
                 </thead>
                 <tbody>
                     ${SKUS.map(sku => {
-                        const finalForm = skuForms[sku] ? skuForms[sku][1] : null;
+                        const finalForm = skuForms[sku] ? skuForms[sku][2] : null;
                         const rateEl = finalForm ? finalForm.section.querySelector('.finalCostDisplay') : null;
                         const rate = rateEl ? rateEl.textContent : "0.00";
                         return `
@@ -975,10 +1113,17 @@ function renderDashboard() {
     if (!tableContainer) return;
 
     const history = JSON.parse(localStorage.getItem('skuRateHistory') || "{}");
-    const volumes = { "Laminate": "1,200", "SKU 2": "850", "SKU 3": "2,100", "SKU 4": "450", "SKU 5": "1,600" };
+    const volumes = { 
+        "Laminate": "1,200", 
+        "HBC Palm 1L": "850", 
+        "HBC Palm 0.5L": "2,100", 
+        "HBC SBO 1L": "450", 
+        "H&T SBO 1L": "1,600", 
+        "H&T KGMO 1L": "900" 
+    };
 
     const dashboardData = SKUS.map(sku => {
-        const finalForm = skuForms[sku] ? skuForms[sku][1] : null;
+        const finalForm = skuForms[sku] ? skuForms[sku][2] : null;
         const rateEl = finalForm ? finalForm.section.querySelector('.finalCostDisplay') : null;
         const presentRate = rateEl ? parseFloat(rateEl.textContent) : 0;
         
@@ -1067,6 +1212,7 @@ function applyDefaultValues(sku) {
                     const matches = allData.filter(d => (d.folder_key || "").toUpperCase() === searchMat);
                     if (matches.length > 0) {
                         const match = matches[Math.floor(Math.random() * Math.min(matches.length, 5))]; // Randomly pick one of the first 5
+                        rowEl.querySelector('.row-supplier').value = match.location;
                         rowEl.querySelector('.row-location').value = match.location;
                         laminateForm.updateRowCascadingFilters(i, true);
                         rowEl.querySelector('.row-state').value = match.state;
@@ -1170,59 +1316,79 @@ function navigateToSKU(sku) {
 
 function renderMaterialRoster() {
     const container = document.getElementById('materialRosterContainer');
-    if (!container) return;
+    const selector = document.getElementById('rosterSkuSelector');
+    if (!container || !selector) return;
 
-    // Collect all unique material+grade combinations from all SKUs
+    if (selector.options.length <= 1) {
+        selector.innerHTML = '<option value="All">All SKUs</option>' + 
+            SKUS.map(sku => `<option value="${sku}">${sku}</option>`).join('');
+        selector.addEventListener('change', renderMaterialRoster);
+    }
+
+    const selectedSku = selector.value;
     const selectedMaterials = [];
 
-    SKUS.forEach(sku => {
+    const skusToProcess = selectedSku === 'All' ? SKUS : [selectedSku];
+
+    skusToProcess.forEach(sku => {
         const forms = skuForms[sku];
         if (!forms) return;
 
         // 1. From Film Cost Table (Polymers)
         forms[0].rows.forEach(row => {
             if (row.grade && row.price > 0) {
+                const rowEl = forms[0].section.querySelector(`tr[data-index="${forms[0].rows.indexOf(row)}"]`);
+                const weightage = rowEl ? parseFloat(rowEl.querySelector('.row-pct').value) || 0 : row.pct;
+                
                 selectedMaterials.push({
                     name: row.name,
                     grade: row.grade,
-                    price: row.price
+                    price: row.price,
+                    sku: sku,
+                    weightage: weightage
                 });
             }
         });
 
-        // 2. From Final Cost Table (Substrates, Inks, etc.)
-        const finalData = forms[1].data;
-        const finalSection = forms[1].section;
+        // 2. From Ink Cost Section
+        const inkData = forms[1].getData();
+        if (inkData.rate > 0) {
+            selectedMaterials.push({
+                name: 'Ink',
+                grade: 'Process Ink',
+                price: inkData.rate,
+                sku: sku,
+                weightage: inkData.cont
+            });
+        }
+
+        // 3. From Final Cost Section (Substrate weightage)
+        // Substrate names/prices are already in Film Cost, but we need the % from Final Cost
+        const finalSection = forms[2].section;
+        const subContEl = finalSection.querySelector('.val-cont');
+        const subWeightage = subContEl ? parseFloat(subContEl.value) || 0 : 0;
         
-        // Helper to extract from final form rows
-        ['substrate', 'ink', 'adhesive'].forEach(type => {
-            const gradeEl = finalSection.querySelector(`.row-${type} .grade-select`);
-            const priceEl = finalSection.querySelector(`.row-${type} .row-price-input`);
-            if (gradeEl && gradeEl.value && priceEl && parseFloat(priceEl.value) > 0) {
-                selectedMaterials.push({
-                    name: type.charAt(0).toUpperCase() + type.slice(1),
-                    grade: gradeEl.value,
-                    price: parseFloat(priceEl.value)
-                });
-            }
-        });
+        // We don't add the substrate as a new material here because it's a composite of the polymers
+        // But the user might want to see the specific substrate grade if it was a single entry.
+        // For now, the polymers represent the substrate.
     });
 
-    // 3. Add default benchmark materials as requested
-    const benchmarks = [
-        { name: 'Nylon', grade: 'Benchmark', price: 192 },
-        { name: 'Tie Resin', grade: 'Benchmark', price: 185 },
-        { name: 'WMB', grade: 'Benchmark', price: 215 },
-        { name: 'PPA', grade: 'Benchmark', price: 1.28 }
-    ];
-    benchmarks.forEach(b => selectedMaterials.push(b));
+    // 4. Add default benchmark materials (only if All or Benchmark is relevant)
+    if (selectedSku === 'All') {
+        const benchmarks = [
+            { name: 'Nylon', grade: 'Benchmark', price: 192, sku: 'Benchmark', weightage: 0 },
+            { name: 'Tie Resin', grade: 'Benchmark', price: 185, sku: 'Benchmark', weightage: 0 },
+            { name: 'WMB', grade: 'Benchmark', price: 215, sku: 'Benchmark', weightage: 0 },
+            { name: 'PPA', grade: 'Benchmark', price: 1.28, sku: 'Benchmark', weightage: 0 }
+        ];
+        benchmarks.forEach(b => selectedMaterials.push(b));
+    }
 
-    // Deduplicate by material + grade and attach meta
+    // Deduplicate and aggregate
     const uniqueMaterials = {};
     selectedMaterials.forEach(m => {
         const key = `${m.name}|${m.grade}`;
         if (!uniqueMaterials[key]) {
-            // Find match in allData for tooltip (skip for benchmarks)
             let match = null;
             if (m.grade !== 'Benchmark') {
                 let searchMaterial = m.name.toUpperCase();
@@ -1234,7 +1400,16 @@ function renderMaterialRoster() {
                     d.grade === m.grade
                 );
             }
-            uniqueMaterials[key] = { ...m, match };
+            uniqueMaterials[key] = { 
+                name: m.name, 
+                grade: m.grade, 
+                price: m.price, 
+                match,
+                usages: [] 
+            };
+        }
+        if (m.sku !== 'Benchmark' && m.weightage > 0) {
+            uniqueMaterials[key].usages.push({ sku: m.sku, weightage: m.weightage });
         }
     });
 
@@ -1247,15 +1422,25 @@ function renderMaterialRoster() {
                 <tr>
                     <th>Material</th>
                     <th>Selected Grade</th>
+                    <th>Weightage (%)</th>
                     <th style="text-align: right;">Latest Price (₹/MT)</th>
                 </tr>
             </thead>
             <tbody>
-                ${rosterData.length === 0 ? `<tr><td colspan="3" class="muted" style="text-align: center; padding: 2rem;">No materials selected in any SKU sheet yet.</td></tr>` : ''}
+                ${rosterData.length === 0 ? `<tr><td colspan="4" class="muted" style="text-align: center; padding: 2rem;">No materials found for the selected filter.</td></tr>` : ''}
                 ${rosterData.map(m => `
                     <tr>
-                        <td><b>${m.name}</b></td>
+                        <td>
+                            <a href="#" class="material-history-link" data-name="${m.name}" data-grade="${m.grade}" data-price="${m.price}">
+                                <b>${m.name}</b>
+                            </a>
+                        </td>
                         <td>${m.grade}</td>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">
+                            ${m.usages.length > 0 
+                                ? m.usages.map(u => `<span>${u.sku}: <b>${u.weightage}%</b></span>`).join('<br>') 
+                                : '<span class="muted">-</span>'}
+                        </td>
                         <td style="text-align: right; font-weight: 600; position: relative; padding-right: 30px;">
                             ₹ ${m.price.toLocaleString('en-IN')}
                             ${m.match ? `
@@ -1273,6 +1458,14 @@ function renderMaterialRoster() {
             </tbody>
         </table>
     `;
+
+    container.querySelectorAll('.material-history-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const { name, grade, price } = link.dataset;
+            showMaterialHistory(name, grade, parseFloat(price));
+        });
+    });
 }
 
 const skuSelector = document.getElementById('skuSelector');
@@ -1287,15 +1480,36 @@ if (skuSelector) {
     });
 }
 
+const plantSelector = document.getElementById('plantSelector');
+const dashboardPlantSelector = document.getElementById('dashboardPlantSelector');
+
+function syncPlant(e) {
+    const plant = e.target.value;
+    if (plantSelector) plantSelector.value = plant;
+    if (dashboardPlantSelector) dashboardPlantSelector.value = plant;
+    showToast(`Switched to ${plant} plant view`, "info");
+}
+
+if (plantSelector) {
+    plantSelector.addEventListener('change', syncPlant);
+}
+if (dashboardPlantSelector) {
+    dashboardPlantSelector.addEventListener('change', syncPlant);
+}
+
 function saveSpecificSKU(sku) {
     const savedData = localStorage.getItem('skuCostingData') || "{}";
     const allData = JSON.parse(savedData);
-    allData[sku] = { laminate: skuForms[sku][0].getData(), final: skuForms[sku][1].getData() };
+    allData[sku] = { 
+        laminate: skuForms[sku][0].getData(), 
+        ink: skuForms[sku][1].getData(),
+        final: skuForms[sku][2].getData() 
+    };
     localStorage.setItem('skuCostingData', JSON.stringify(allData));
 
     const history = JSON.parse(localStorage.getItem('skuRateHistory') || "{}");
     if (!history[sku]) history[sku] = [];
-    const rateEl = skuForms[sku][1].section.querySelector('.finalCostDisplay');
+    const rateEl = skuForms[sku][2].section.querySelector('.finalCostDisplay');
     const finalRate = rateEl ? parseFloat(rateEl.textContent) : 0;
     const lastEntry = history[sku][history[sku].length - 1];
 
@@ -1306,6 +1520,282 @@ function saveSpecificSKU(sku) {
 }
 
 window.saveSpecificSKU = saveSpecificSKU;
+
+// --- New Cost Calculators (Packaging, Freight, Conversion) ---
+
+let packagingCostData = JSON.parse(localStorage.getItem('packagingCostData')) || {};
+let freightCostData = JSON.parse(localStorage.getItem('freightCostData')) || {};
+let conversionCostData = JSON.parse(localStorage.getItem('conversionCostData')) || {
+    monthlyRent: 150000,
+    electricityCost: 80000,
+    manpowerCost: 300000,
+    statutoryCost: 50000,
+    totalProduction: 20000 // kg/month
+};
+
+// Initialize SKU data with random values if not present
+function initializeCostData() {
+    SKUS.forEach(sku => {
+        if (!packagingCostData[sku]) {
+            packagingCostData[sku] = {
+                totalWeight: parseFloat((15 + Math.random() * 5).toFixed(2)),
+                cartonBoxCost: parseFloat((45 + Math.random() * 10).toFixed(2)),
+                coreWeight: parseFloat((450 + Math.random() * 100).toFixed(2)),
+                coreCostKg: parseFloat((35 + Math.random() * 5).toFixed(2)),
+                polybagCostKg: parseFloat((120 + Math.random() * 20).toFixed(2)),
+                polybagWeight: parseFloat((20 + Math.random() * 5).toFixed(2))
+            };
+        }
+        if (!freightCostData[sku]) {
+            freightCostData[sku] = {
+                weightPerRoll: parseFloat((15 + Math.random() * 5).toFixed(2)),
+                rollsPerTruck: 450 + Math.floor(Math.random() * 100),
+                distance: 800 + Math.floor(Math.random() * 400),
+                truckCost: 45000 + Math.floor(Math.random() * 10000)
+            };
+        }
+    });
+}
+
+initializeCostData();
+
+function renderPackagingCost() {
+    const container = document.getElementById('packagingCostContainer');
+    const selector = document.getElementById('packagingSkuSelector');
+    if (!container || !selector) return;
+
+    // Populate selector if empty
+    if (selector.options.length === 0) {
+        selector.innerHTML = SKUS.map(sku => `<option value="${sku}">${sku}</option>`).join('');
+        selector.addEventListener('change', renderPackagingCost);
+    }
+
+    const sku = selector.value;
+    const data = packagingCostData[sku];
+
+    const cartonPerKg = data.cartonBoxCost / data.totalWeight;
+    const coreCostPerRoll = (data.coreWeight / 1000) * data.coreCostKg;
+    const corePerKg = coreCostPerRoll / data.totalWeight;
+    const polybagCostPerRoll = (data.polybagWeight / 1000) * data.polybagCostKg;
+    const polybagPerKg = polybagCostPerRoll / data.totalWeight;
+    const totalPkgCost = cartonPerKg + corePerKg + polybagPerKg;
+
+    container.innerHTML = `
+        <div class="zbc-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="color: var(--primary);">Packaging Cost Split-up: ${sku}</h3>
+                <button class="btn-primary btn-small save-cost-btn" data-type="packaging">Save Changes</button>
+            </div>
+            <table class="costing-table">
+                <tbody>
+                    <tr>
+                        <td>Total Weight of Roll</td>
+                        <td class="muted">kg</td>
+                        <td><input type="number" class="cost-input" data-key="totalWeight" value="${data.totalWeight}"></td>
+                    </tr>
+                    <tr>
+                        <td>Cost of Carton Box</td>
+                        <td class="muted">rs./box</td>
+                        <td><input type="number" class="cost-input" data-key="cartonBoxCost" value="${data.cartonBoxCost}"></td>
+                    </tr>
+                    <tr>
+                        <td class="muted">Cost of Carton Box per Kg</td>
+                        <td class="muted">rs./kg</td>
+                        <td style="font-weight: 600;">₹ ${cartonPerKg.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Weight of Core</td>
+                        <td class="muted">grams</td>
+                        <td><input type="number" class="cost-input" data-key="coreWeight" value="${data.coreWeight}"></td>
+                    </tr>
+                    <tr>
+                        <td>Cost of Core</td>
+                        <td class="muted">rs./kg</td>
+                        <td><input type="number" class="cost-input" data-key="coreCostKg" value="${data.coreCostKg}"></td>
+                    </tr>
+                    <tr>
+                        <td class="muted">Cost of Core per Kg</td>
+                        <td class="muted">rs./kg</td>
+                        <td style="font-weight: 600;">₹ ${corePerKg.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Cost of Polybag</td>
+                        <td class="muted">rs./kg</td>
+                        <td><input type="number" class="cost-input" data-key="polybagCostKg" value="${data.polybagCostKg}"></td>
+                    </tr>
+                    <tr>
+                        <td>Weight of Polybag Used</td>
+                        <td class="muted">grams</td>
+                        <td><input type="number" class="cost-input" data-key="polybagWeight" value="${data.polybagWeight}"></td>
+                    </tr>
+                    <tr>
+                        <td class="muted">Cost of Polybag Used per Roll</td>
+                        <td class="muted">rs.</td>
+                        <td style="font-weight: 600;">₹ ${polybagCostPerRoll.toFixed(2)}</td>
+                    </tr>
+                    <tr style="background: #fef9c3;">
+                        <td style="font-weight: 700;">TOTAL PACKAGING COST</td>
+                        <td class="muted">rs./kg</td>
+                        <td style="font-weight: 700; color: var(--accent);">₹ ${totalPkgCost.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.querySelectorAll('.cost-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            packagingCostData[sku][e.target.dataset.key] = parseFloat(e.target.value) || 0;
+            renderPackagingCost();
+        });
+    });
+
+    container.querySelector('.save-cost-btn').addEventListener('click', () => {
+        localStorage.setItem('packagingCostData', JSON.stringify(packagingCostData));
+        showToast(`Packaging cost for ${sku} saved`);
+    });
+}
+
+function renderFreightCost() {
+    const container = document.getElementById('freightCostContainer');
+    const selector = document.getElementById('freightSkuSelector');
+    if (!container || !selector) return;
+
+    if (selector.options.length === 0) {
+        selector.innerHTML = SKUS.map(sku => `<option value="${sku}">${sku}</option>`).join('');
+        selector.addEventListener('change', renderFreightCost);
+    }
+
+    const sku = selector.value;
+    const data = freightCostData[sku];
+
+    const totalWeightTruck = data.weightPerRoll * data.rollsPerTruck;
+    const freightPerKg = totalWeightTruck > 0 ? data.truckCost / totalWeightTruck : 0;
+
+    container.innerHTML = `
+        <div class="zbc-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="color: var(--primary);">Freight Cost Split-up: ${sku}</h3>
+                <button class="btn-primary btn-small save-cost-btn" data-type="freight">Save Changes</button>
+            </div>
+            <table class="costing-table">
+                <tbody>
+                    <tr>
+                        <td>Weight of Roll</td>
+                        <td class="muted">kg</td>
+                        <td><input type="number" class="cost-input" data-key="weightPerRoll" value="${data.weightPerRoll}"></td>
+                    </tr>
+                    <tr>
+                        <td>Total Rolls in Truck</td>
+                        <td class="muted">no.s</td>
+                        <td><input type="number" class="cost-input" data-key="rollsPerTruck" value="${data.rollsPerTruck}"></td>
+                    </tr>
+                    <tr>
+                        <td class="muted">Total Weight of Rolls in Truck</td>
+                        <td class="muted">kg</td>
+                        <td style="font-weight: 600;">${totalWeightTruck.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Distance from Destination Plant</td>
+                        <td class="muted">km</td>
+                        <td><input type="number" class="cost-input" data-key="distance" value="${data.distance}"></td>
+                    </tr>
+                    <tr>
+                        <td>Total Transportation Cost for Truck</td>
+                        <td class="muted">rs.</td>
+                        <td><input type="number" class="cost-input" data-key="truckCost" value="${data.truckCost}"></td>
+                    </tr>
+                    <tr style="background: #fef9c3;">
+                        <td style="font-weight: 700;">FREIGHT COST PER KG</td>
+                        <td class="muted">rs./kg</td>
+                        <td style="font-weight: 700; color: var(--accent);">₹ ${freightPerKg.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.querySelectorAll('.cost-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            freightCostData[sku][e.target.dataset.key] = parseFloat(e.target.value) || 0;
+            renderFreightCost();
+        });
+    });
+
+    container.querySelector('.save-cost-btn').addEventListener('click', () => {
+        localStorage.setItem('freightCostData', JSON.stringify(freightCostData));
+        showToast(`Freight cost for ${sku} saved`);
+    });
+}
+
+function renderConversionCost() {
+    const container = document.getElementById('conversionCostContainer');
+    if (!container) return;
+
+    const data = conversionCostData;
+    const totalCost = data.monthlyRent + data.electricityCost + data.manpowerCost + data.statutoryCost;
+    const conversionCostPerKg = data.totalProduction > 0 ? totalCost / data.totalProduction : 0;
+
+    container.innerHTML = `
+        <div class="zbc-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="color: var(--primary);">Conversion Cost Breakdown</h3>
+                <button class="btn-primary btn-small save-cost-btn" data-type="conversion">Save Changes</button>
+            </div>
+            <table class="costing-table">
+                <tbody>
+                    <tr>
+                        <td>Monthly Rent</td>
+                        <td class="muted">rs./month</td>
+                        <td><input type="number" class="cost-input" data-key="monthlyRent" value="${data.monthlyRent}"></td>
+                    </tr>
+                    <tr>
+                        <td>Electricity Cost</td>
+                        <td class="muted">rs./month</td>
+                        <td><input type="number" class="cost-input" data-key="electricityCost" value="${data.electricityCost}"></td>
+                    </tr>
+                    <tr>
+                        <td>Manpower Cost</td>
+                        <td class="muted">rs./month</td>
+                        <td><input type="number" class="cost-input" data-key="manpowerCost" value="${data.manpowerCost}"></td>
+                    </tr>
+                    <tr>
+                        <td>Statutory Cost</td>
+                        <td class="muted">rs./month</td>
+                        <td><input type="number" class="cost-input" data-key="statutoryCost" value="${data.statutoryCost}"></td>
+                    </tr>
+                    <tr>
+                        <td class="muted">Total Cost</td>
+                        <td class="muted">rs./month</td>
+                        <td style="font-weight: 600;">₹ ${totalCost.toLocaleString('en-IN')}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Production per Month</td>
+                        <td class="muted">kg/month</td>
+                        <td><input type="number" class="cost-input" data-key="totalProduction" value="${data.totalProduction}"></td>
+                    </tr>
+                    <tr style="background: #fef9c3;">
+                        <td style="font-weight: 700;">CONVERSION COST</td>
+                        <td class="muted">rs./kg</td>
+                        <td style="font-weight: 700; color: var(--accent);">₹ ${conversionCostPerKg.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.querySelectorAll('.cost-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            conversionCostData[e.target.dataset.key] = parseFloat(e.target.value) || 0;
+            renderConversionCost();
+        });
+    });
+
+    container.querySelector('.save-cost-btn').addEventListener('click', () => {
+        localStorage.setItem('conversionCostData', JSON.stringify(conversionCostData));
+        showToast(`Conversion costs saved`);
+    });
+}
 
 document.getElementById('refreshBtn').addEventListener('click', async () => {
     const btn = document.getElementById('refreshBtn');
@@ -1319,6 +1809,114 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
 });
 
 fetchData();
+
+// --- Material History Modal Logic ---
+let materialHistoryChartInstance = null;
+
+function showMaterialHistory(name, grade, currentPrice) {
+    const modal = document.getElementById('materialModal');
+    const title = document.getElementById('modalTitle');
+    const canvas = document.getElementById('materialHistoryChart');
+    if (!modal || !title || !canvas) return;
+
+    title.textContent = `Price History: ${name} (${grade})`;
+    modal.classList.add('active');
+
+    const ctx = canvas.getContext('2d');
+    if (materialHistoryChartInstance) {
+        materialHistoryChartInstance.destroy();
+    }
+
+    // Generate mock history for material (since we don't have true DB history yet)
+    const labels = [];
+    const dataPoints = [];
+    const today = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - (i * 15));
+        labels.push(date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }));
+        
+        // Random fluctuation around current price (mocking trend)
+        const factor = 1 + (Math.random() * 0.08 - 0.04); // +/- 4%
+        dataPoints.push(currentPrice * factor);
+    }
+    // Ensure the last point is the exact current price
+    dataPoints[dataPoints.length - 1] = currentPrice;
+
+    materialHistoryChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Price (₹/kg)',
+                data: dataPoints,
+                borderColor: '#eab308',
+                backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 6,
+                pointBackgroundColor: '#eab308',
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: (context) => `Rate: ₹${context.parsed.y.toFixed(2)} /kg`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { 
+                        font: { size: 11 },
+                        callback: value => '₹' + value.toFixed(2) 
+                    }
+                },
+                x: { 
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                }
+            },
+            animations: {
+                tension: {
+                    duration: 1000,
+                    easing: 'linear',
+                    from: 1,
+                    to: 0.4,
+                    loop: false
+                }
+            }
+        }
+    });
+}
+
+// Modal closing logic
+const closeMaterialModal = () => {
+    const modal = document.getElementById('materialModal');
+    if (modal) modal.classList.remove('active');
+};
+
+document.getElementById('closeModal')?.addEventListener('click', closeMaterialModal);
+window.addEventListener('click', (e) => {
+    const modal = document.getElementById('materialModal');
+    if (e.target === modal) closeMaterialModal();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMaterialModal();
+});
 
 
 
