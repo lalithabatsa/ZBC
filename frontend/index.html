@@ -65,6 +65,7 @@
                         <div class="field">
                             <label>Select Plant</label>
                             <select id="dashboardPlantSelector" class="sku-dropdown">
+                                <option value="All">All Plants</option>
                                 <option value="Haldia">Haldia</option>
                                 <option value="Kandla">Kandla</option>
                                 <option value="Jaipur">Jaipur</option>
@@ -117,7 +118,16 @@
                     </div>
                 </div>
                 <div id="freight-cost-panel" class="sub-panel">
-                    <div class="sku-selection-bar" style="margin-bottom: 1.5rem;">
+                    <div class="sku-selection-bar" style="margin-bottom: 1.5rem; display: flex; gap: 1rem;">
+                        <div class="field">
+                            <label>Select Plant</label>
+                            <select id="freightPlantSelector" class="sku-dropdown">
+                                <option value="Haldia">Haldia</option>
+                                <option value="Kandla">Kandla</option>
+                                <option value="Jaipur">Jaipur</option>
+                                <option value="KP">KP</option>
+                            </select>
+                        </div>
                         <div class="field">
                             <label>Select SKU</label>
                             <select class="sku-cost-selector" id="freightSkuSelector"></select>
@@ -146,6 +156,7 @@
                     <div class="field" style="flex: 1;">
                         <label>Select Plant</label>
                         <select id="plantSelector" class="sku-dropdown">
+                            <option value="All">All Plants</option>
                             <option value="Haldia">Haldia</option>
                             <option value="Kandla">Kandla</option>
                             <option value="Jaipur">Jaipur</option>

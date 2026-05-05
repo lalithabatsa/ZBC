@@ -803,11 +803,9 @@ class InkCostingForm {
         this.sku = sku;
         this.partnerForm = partnerForm;
 
-        this.data = {
-            gsm: 1.0,
-            rate: 1400,
-            cont: 2
-        };
+        this.rows = [
+            { name: 'Process Ink', grade: '', price: 1400, pct: 2 }
+        ];
 
         this.renderBaseHTML();
         this.initEventListeners();
@@ -820,17 +818,45 @@ class InkCostingForm {
 
     getData() {
         return {
-            gsm: parseFloat(this.section.querySelector('.ink-gsm').value) || 0,
-            rate: parseFloat(this.section.querySelector('.ink-rate').value) || 0,
-            cont: parseFloat(this.section.querySelector('.ink-cont').value) || 0
+            rows: this.rows.map((row, i) => {
+                const rowEl = this.section.querySelector(`tr[data-index="${i}"]`);
+                return {
+                    supplier: rowEl.querySelector('.row-supplier').value,
+                    location: rowEl.querySelector('.row-location').value,
+                    state: rowEl.querySelector('.row-state').value,
+                    zone: rowEl.querySelector('.row-zone').value,
+                    grade: rowEl.querySelector('.grade-search').value,
+                    pct: parseFloat(rowEl.querySelector('.row-pct').value) || 0,
+                    price: row.price
+                };
+            })
         };
     }
 
     setData(data) {
-        if (!data) return;
-        this.section.querySelector('.ink-gsm').value = data.gsm;
-        this.section.querySelector('.ink-rate').value = data.rate;
-        this.section.querySelector('.ink-cont').value = data.cont;
+        if (!data || !data.rows) return;
+        data.rows.forEach((rowData, i) => {
+            const rowEl = this.section.querySelector(`tr[data-index="${i}"]`);
+            if (!rowEl) return;
+
+            rowEl.querySelector('.row-supplier').value = rowData.supplier || '';
+            rowEl.querySelector('.row-location').value = rowData.location || '';
+            this.updateRowCascadingFilters(i, true);
+            
+            rowEl.querySelector('.row-state').value = rowData.state || '';
+            this.updateRowCascadingFilters(i, true);
+            
+            rowEl.querySelector('.row-zone').value = rowData.zone || '';
+            this.updateRowCascadingFilters(i, true);
+
+            rowEl.querySelector('.grade-search').value = rowData.grade || '';
+            this.rows[i].grade = rowData.grade || '';
+            this.rows[i].price = rowData.price || 0;
+            this.rows[i].pct = rowData.pct || 0;
+            
+            rowEl.querySelector('.row-pct').value = rowData.pct || 0;
+            rowEl.querySelector('.row-price-input').value = rowData.price ? rowData.price.toFixed(2) : '';
+        });
         this.recalculate();
     }
 
@@ -841,27 +867,59 @@ class InkCostingForm {
             <div class="section-header">
                 <h2 class="section-title">${this.sku} Ink Cost</h2>
             </div>
-            <div class="table-container">
+            <div class="table-container" style="overflow-x: auto;">
                 <table class="costing-table">
                     <thead>
                         <tr>
-                            <th>Type</th>
-                            <th>Gsm</th>
-                            <th>Rate (₹/kg)</th>
-                            <th>Cont %</th>
-                            <th style="text-align: right;">Amount</th>
+                            <th style="width: 130px;">Ink Type</th>
+                            <th style="width: 140px;">Supplier Name</th>
+                            <th style="width: 140px;">Supply Loc.</th>
+                            <th style="width: 120px;">State</th>
+                            <th style="width: 120px;">Zone</th>
+                            <th style="width: 150px;">Grade</th>
+                            <th style="width: 70px;">% percentage</th>
+                            <th style="width: 90px;">Price/KG</th>
+                            <th style="width: 100px;">Amount</th>
+                            <th style="width: 40px;"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td><b>Process Ink</b></td>
-                            <td><input type="number" class="ink-gsm" value="${this.data.gsm}" step="0.1"></td>
-                            <td><input type="number" class="ink-rate" value="${this.data.rate}"></td>
-                            <td><input type="number" class="ink-cont" value="${this.data.cont}">%</td>
-                            <td style="text-align: right; font-weight: 700;" class="ink-total-amt">0.00</td>
-                        </tr>
+                        ${this.rows.map((row, i) => `
+                            <tr data-index="${i}">
+                                <td style="font-size: 0.85rem;"><b>${row.name}</b></td>
+                                <td><select class="row-supplier select-small" style="width: 100%;"><option value="">-</option></select></td>
+                                <td><select class="row-location select-small" style="width: 100%;"><option value="">-</option></select></td>
+                                <td><select class="row-state select-small" style="width: 100%;"><option value="">-</option></select></td>
+                                <td><select class="row-zone select-small" style="width: 100%;"><option value="">-</option></select></td>
+                                <td>
+                                    <div class="search-container">
+                                        <input type="text" class="grade-search search-input" placeholder="Search..." style="padding: 0.2rem; font-size: 0.85rem;">
+                                        <div class="grade-dropdown dropdown-results"></div>
+                                    </div>
+                                </td>
+                                <td><input type="number" class="row-pct" value="${row.pct}" style="text-align: center; width: 50px;"></td>
+                                <td><input type="number" class="row-price-input" value="${row.price.toFixed(2)}" placeholder="0.00" style="text-align: right; width: 70px;"></td>
+                                <td class="amount-col" style="position: relative; text-align: right; padding-right: 20px;">
+                                    <span class="amount-val">0.00</span>
+                                    <div class="info-icon row-info" style="display: none; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 10px; width: 14px; height: 14px; line-height: 14px;">?
+                                        <div class="tooltip source-tooltip" style="top: 100%; right: 0; left: auto; transform: none; margin-top: 5px;">
+                                            <p><b>Book:</b> <span class="tt-book">-</span></p>
+                                            <p><b>Sheet:</b> <span class="tt-sheet">-</span></p>
+                                            <p><b>Cell:</b> <span class="tt-cell">-</span></p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="width: 40px;"><button class="btn row-refresh" style="padding: 2px 6px; font-size: 0.75rem;">↻</button></td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
+            </div>
+            <div class="summary-card" style="margin-top: 1rem;">
+                <div class="summary-row total" style="background: #eab308; color: #1e293b; padding: 0.75rem; border-radius: 6px;">
+                    <span>Total Ink Cost</span>
+                    <span class="ink-total-amt">0.00</span>
+                </div>
             </div>
         `;
         this.container.appendChild(section);
@@ -869,22 +927,188 @@ class InkCostingForm {
     }
 
     initEventListeners() {
-        this.section.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => this.recalculate());
+        this.section.querySelectorAll('tr[data-index]').forEach(rowEl => {
+            const index = rowEl.dataset.index;
+            const supSelect = rowEl.querySelector('.row-supplier');
+            const locSelect = rowEl.querySelector('.row-location');
+            const stateSelect = rowEl.querySelector('.row-state');
+            const zoneSelect = rowEl.querySelector('.row-zone');
+            const searchInput = rowEl.querySelector('.grade-search');
+            const dropdown = rowEl.querySelector('.grade-dropdown');
+            const refreshBtn = rowEl.querySelector('.row-refresh');
+
+            supSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
+            locSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
+            stateSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
+            zoneSelect.addEventListener('change', () => this.updateRowCascadingFilters(index));
+
+            searchInput.addEventListener('input', (e) => this.renderRowGradeDropdown(index, e.target.value));
+            searchInput.addEventListener('focus', () => this.renderRowGradeDropdown(index, searchInput.value));
+
+            dropdown.addEventListener('click', (e) => {
+                if (e.target.classList.contains('dropdown-item')) {
+                    this.selectRowGrade(index, e.target.dataset.value);
+                }
+            });
+
+            refreshBtn.addEventListener('click', () => this.updateRowPrice(index));
+
+            rowEl.querySelector('.row-pct').addEventListener('input', () => this.recalculate());
+            rowEl.querySelector('.row-price-input').addEventListener('input', () => this.recalculate());
+        });
+
+        document.addEventListener('click', (e) => {
+            this.section.querySelectorAll('.dropdown-results').forEach(d => {
+                const searchInput = d.previousElementSibling;
+                if (!d.contains(e.target) && !searchInput.contains(e.target)) {
+                    d.classList.remove('active');
+                }
+            });
         });
     }
 
     populateInitialDropdowns() {
+        this.rows.forEach((row, i) => {
+            this.updateRowCascadingFilters(i, true);
+        });
+    }
+
+    updateRowCascadingFilters(i, initial = false) {
+        const rowEl = this.section.querySelector(`tr[data-index="${i}"]`);
+        const row = this.rows[i];
+
+        const supSelect = rowEl.querySelector('.row-supplier');
+        const locSelect = rowEl.querySelector('.row-location');
+        const stateSelect = rowEl.querySelector('.row-state');
+        const zoneSelect = rowEl.querySelector('.row-zone');
+
+        const selectedSup = supSelect.value;
+        const selectedLoc = locSelect.value;
+        const selectedState = stateSelect.value;
+        const selectedZone = zoneSelect.value;
+
+        let searchMat = "INK"; // Default for InkCostingForm
+        let rowData = allData.filter(d => (d.folder_key || "").toUpperCase().includes(searchMat));
+
+        const suppliers = [...new Set(rowData.map(d => d.location))].sort();
+        supSelect.innerHTML = '<option value="">-</option>' + suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
+        if (suppliers.includes(selectedSup)) supSelect.value = selectedSup;
+
+        const locations = [...new Set(rowData.map(d => d.location))].sort();
+        locSelect.innerHTML = '<option value="">-</option>' + locations.map(l => `<option value="${l}">${l}</option>`).join('');
+        if (locations.includes(selectedLoc)) locSelect.value = selectedLoc;
+
+        if (locSelect.value) rowData = rowData.filter(d => d.location === locSelect.value);
+
+        const states = [...new Set(rowData.map(d => d.state))].sort();
+        stateSelect.innerHTML = '<option value="">-</option>' + states.map(s => `<option value="${s}">${s}</option>`).join('');
+        if (states.includes(selectedState)) stateSelect.value = selectedState;
+
+        if (stateSelect.value) rowData = rowData.filter(d => d.state === stateSelect.value);
+
+        const zones = [...new Set(rowData.map(d => d.zone))].sort();
+        zoneSelect.innerHTML = '<option value="">-</option>' + zones.map(z => `<option value="${z}">${z}</option>`).join('');
+        if (zones.includes(selectedZone)) zoneSelect.value = selectedZone;
+
+        if (!initial) {
+            this.updateRowPrice(i);
+        }
+    }
+
+    renderRowGradeDropdown(index, filter = '') {
+        const rowEl = this.section.querySelector(`tr[data-index="${index}"]`);
+        const location = rowEl.querySelector('.row-location').value;
+        const state = rowEl.querySelector('.row-state').value;
+        const zone = rowEl.querySelector('.row-zone').value;
+        
+        let searchMaterial = "INK";
+        let filtered = allData.filter(d => (d.folder_key || "").toUpperCase().includes(searchMaterial));
+        if (location) filtered = filtered.filter(d => d.location === location);
+        if (state) filtered = filtered.filter(d => d.state === state);
+        if (zone) filtered = filtered.filter(d => d.zone === zone);
+
+        const grades = [...new Set(filtered.map(d => d.grade))].sort();
+        const visibleGrades = filter ? grades.filter(g => g.toLowerCase().includes(filter.toLowerCase())) : grades;
+
+        const dropdown = rowEl.querySelector('.grade-dropdown');
+        dropdown.innerHTML = visibleGrades.map(g => `<div class="dropdown-item" data-value="${g}">${g}</div>`).join('');
+
+        if (visibleGrades.length > 0) dropdown.classList.add('active');
+        else dropdown.classList.remove('active');
+    }
+
+    selectRowGrade(index, grade) {
+        const rowEl = this.section.querySelector(`tr[data-index="${index}"]`);
+        rowEl.querySelector('.grade-search').value = grade;
+        rowEl.querySelector('.grade-dropdown').classList.remove('active');
+        this.rows[index].grade = grade;
+        this.updateRowPrice(index);
+    }
+
+    updateRowPrice(index) {
+        const rowEl = this.section.querySelector(`tr[data-index="${index}"]`);
+        const row = this.rows[index];
+        const location = rowEl.querySelector('.row-location').value;
+        const state = rowEl.querySelector('.row-state').value;
+        const zone = rowEl.querySelector('.row-zone').value;
+        const grade = row.grade;
+
+        let searchMaterial = "INK";
+        const match = allData.find(d =>
+            (d.folder_key || "").toUpperCase().includes(searchMaterial) &&
+            (!location || d.location === location) &&
+            (!state || d.state === state) &&
+            (!zone || d.zone === zone) &&
+            d.grade === grade
+        );
+
+        if (match) {
+            const pricePerKg = match.price / 1000;
+            row.price = pricePerKg;
+            rowEl.querySelector('.row-price-input').value = pricePerKg.toFixed(2);
+
+            const infoIcon = rowEl.querySelector('.row-info');
+            if (infoIcon) {
+                infoIcon.style.display = 'inline-flex';
+                const tooltip = infoIcon.querySelector('.source-tooltip');
+                if (tooltip) {
+                    tooltip.querySelector('.tt-book').textContent = match.meta.source_file;
+                    tooltip.querySelector('.tt-sheet').textContent = match.meta.sheet;
+                    tooltip.querySelector('.tt-cell').textContent = match.meta.cell_ref;
+                }
+            }
+        } else {
+            const infoIcon = rowEl.querySelector('.row-info');
+            if (infoIcon) infoIcon.style.display = 'none';
+        }
         this.recalculate();
     }
 
     recalculate() {
-        const data = this.getData();
-        const total = (data.rate * data.cont) / 100;
-        this.section.querySelector('.ink-total-amt').textContent = total.toFixed(2);
+        let totalInkCost = 0;
+        this.section.querySelectorAll('tr[data-index]').forEach((rowEl, i) => {
+            const pct = parseFloat(rowEl.querySelector('.row-pct').value) || 0;
+            const priceValue = parseFloat(rowEl.querySelector('.row-price-input').value) || 0;
+            this.rows[i].price = priceValue;
+            this.rows[i].pct = pct;
+            const amount = (pct * priceValue) / 100;
+            const amountVal = rowEl.querySelector('.amount-val');
+            if (amountVal) amountVal.textContent = amount.toFixed(2);
+            totalInkCost += amount;
+        });
+
+        this.section.querySelector('.ink-total-amt').textContent = totalInkCost.toFixed(2);
         
         if (this.partnerForm) {
-            this.partnerForm.setInkDetails({ ...data, total });
+            // We need to send some GSM value since FinalLaminateCostForm expects it
+            // For now we keep it compatible by sending the first row's details or aggregated
+            const firstRow = this.rows[0];
+            this.partnerForm.setInkDetails({ 
+                gsm: 1.0, // Default gsm as it's not in the new table columns but requested to match film cost
+                rate: firstRow.price, 
+                cont: firstRow.pct, 
+                total: totalInkCost 
+            });
         }
     }
 }
@@ -1482,19 +1706,34 @@ if (skuSelector) {
 
 const plantSelector = document.getElementById('plantSelector');
 const dashboardPlantSelector = document.getElementById('dashboardPlantSelector');
+const freightPlantSelector = document.getElementById('freightPlantSelector');
 
 function syncPlant(e) {
     const plant = e.target.value;
     if (plantSelector) plantSelector.value = plant;
     if (dashboardPlantSelector) dashboardPlantSelector.value = plant;
+    if (freightPlantSelector) {
+        // freightPlantSelector doesn't have "All" usually, but let's be safe
+        if ([...freightPlantSelector.options].some(o => o.value === plant)) {
+            freightPlantSelector.value = plant;
+        }
+    }
     showToast(`Switched to ${plant} plant view`, "info");
+
+    // Re-render dashboard if we are on it
+    const activeSubTab = document.querySelector('.sub-tab-btn.active');
+    if (activeSubTab && activeSubTab.dataset.subTab === 'dashboard') {
+        renderDashboard();
+    }
 }
 
-if (plantSelector) {
-    plantSelector.addEventListener('change', syncPlant);
-}
-if (dashboardPlantSelector) {
-    dashboardPlantSelector.addEventListener('change', syncPlant);
+if (plantSelector) plantSelector.addEventListener('change', syncPlant);
+if (dashboardPlantSelector) dashboardPlantSelector.addEventListener('change', syncPlant);
+if (freightPlantSelector) {
+    freightPlantSelector.addEventListener('change', (e) => {
+        syncPlant(e);
+        renderFreightCost();
+    });
 }
 
 function saveSpecificSKU(sku) {
@@ -1535,25 +1774,28 @@ let conversionCostData = JSON.parse(localStorage.getItem('conversionCostData')) 
 
 // Initialize SKU data with random values if not present
 function initializeCostData() {
-    SKUS.forEach(sku => {
-        if (!packagingCostData[sku]) {
-            packagingCostData[sku] = {
-                totalWeight: parseFloat((15 + Math.random() * 5).toFixed(2)),
-                cartonBoxCost: parseFloat((45 + Math.random() * 10).toFixed(2)),
-                coreWeight: parseFloat((450 + Math.random() * 100).toFixed(2)),
-                coreCostKg: parseFloat((35 + Math.random() * 5).toFixed(2)),
-                polybagCostKg: parseFloat((120 + Math.random() * 20).toFixed(2)),
-                polybagWeight: parseFloat((20 + Math.random() * 5).toFixed(2))
-            };
-        }
-        if (!freightCostData[sku]) {
-            freightCostData[sku] = {
-                weightPerRoll: parseFloat((15 + Math.random() * 5).toFixed(2)),
-                rollsPerTruck: 450 + Math.floor(Math.random() * 100),
-                distance: 800 + Math.floor(Math.random() * 400),
-                truckCost: 45000 + Math.floor(Math.random() * 10000)
-            };
-        }
+    PLANTS.forEach(plant => {
+        if (!freightCostData[plant]) freightCostData[plant] = {};
+        SKUS.forEach(sku => {
+            if (!packagingCostData[sku]) {
+                packagingCostData[sku] = {
+                    totalWeight: parseFloat((15 + Math.random() * 5).toFixed(2)),
+                    cartonBoxCost: parseFloat((45 + Math.random() * 10).toFixed(2)),
+                    coreWeight: parseFloat((450 + Math.random() * 100).toFixed(2)),
+                    coreCostKg: parseFloat((35 + Math.random() * 5).toFixed(2)),
+                    polybagCostKg: parseFloat((120 + Math.random() * 20).toFixed(2)),
+                    polybagWeight: parseFloat((20 + Math.random() * 5).toFixed(2))
+                };
+            }
+            if (!freightCostData[plant][sku]) {
+                freightCostData[plant][sku] = {
+                    weightPerRoll: parseFloat((15 + Math.random() * 5).toFixed(2)),
+                    rollsPerTruck: 450 + Math.floor(Math.random() * 100),
+                    distance: 800 + Math.floor(Math.random() * 400),
+                    truckCost: 45000 + Math.floor(Math.random() * 10000)
+                };
+            }
+        });
     });
 }
 
@@ -1658,16 +1900,29 @@ function renderPackagingCost() {
 
 function renderFreightCost() {
     const container = document.getElementById('freightCostContainer');
-    const selector = document.getElementById('freightSkuSelector');
-    if (!container || !selector) return;
+    const skuSelector = document.getElementById('freightSkuSelector');
+    const plantSelector = document.getElementById('freightPlantSelector');
+    if (!container || !skuSelector || !plantSelector) return;
 
-    if (selector.options.length === 0) {
-        selector.innerHTML = SKUS.map(sku => `<option value="${sku}">${sku}</option>`).join('');
-        selector.addEventListener('change', renderFreightCost);
+    if (skuSelector.options.length === 0) {
+        skuSelector.innerHTML = SKUS.map(sku => `<option value="${sku}">${sku}</option>`).join('');
+        skuSelector.addEventListener('change', renderFreightCost);
     }
 
-    const sku = selector.value;
-    const data = freightCostData[sku];
+    const sku = skuSelector.value;
+    const plant = plantSelector.value;
+    
+    if (!freightCostData[plant]) freightCostData[plant] = {};
+    if (!freightCostData[plant][sku]) {
+        freightCostData[plant][sku] = {
+            weightPerRoll: 15,
+            rollsPerTruck: 450,
+            distance: 800,
+            truckCost: 45000
+        };
+    }
+    
+    const data = freightCostData[plant][sku];
 
     const totalWeightTruck = data.weightPerRoll * data.rollsPerTruck;
     const freightPerKg = totalWeightTruck > 0 ? data.truckCost / totalWeightTruck : 0;
@@ -1717,14 +1972,14 @@ function renderFreightCost() {
 
     container.querySelectorAll('.cost-input').forEach(input => {
         input.addEventListener('input', (e) => {
-            freightCostData[sku][e.target.dataset.key] = parseFloat(e.target.value) || 0;
+            freightCostData[plant][sku][e.target.dataset.key] = parseFloat(e.target.value) || 0;
             renderFreightCost();
         });
     });
 
     container.querySelector('.save-cost-btn').addEventListener('click', () => {
         localStorage.setItem('freightCostData', JSON.stringify(freightCostData));
-        showToast(`Freight cost for ${sku} saved`);
+        showToast(`Freight cost for ${sku} at ${plant} saved`);
     });
 }
 
