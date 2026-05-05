@@ -814,6 +814,7 @@ class InkCostingForm {
 
     setPartner(partner) {
         this.partnerForm = partner;
+        this.recalculate(); // Sync initial state
     }
 
     getData() {
@@ -834,8 +835,26 @@ class InkCostingForm {
     }
 
     setData(data) {
-        if (!data || !data.rows) return;
-        data.rows.forEach((rowData, i) => {
+        if (!data) return;
+        
+        // Handle legacy format
+        let rows = data.rows;
+        if (!rows && data.rate !== undefined) {
+            rows = [{
+                name: 'Process Ink',
+                supplier: '',
+                location: '',
+                state: '',
+                zone: '',
+                grade: 'Process Ink',
+                pct: data.cont || 0,
+                price: data.rate || 0
+            }];
+        }
+
+        if (!rows) return;
+
+        rows.forEach((rowData, i) => {
             const rowEl = this.section.querySelector(`tr[data-index="${i}"]`);
             if (!rowEl) return;
 
@@ -1463,6 +1482,30 @@ function applyDefaultValues(sku) {
         }
     });
     laminateForm.recalculate();
+
+    // Pick default for Ink if possible
+    const inkForm = forms[1];
+    inkForm.rows.forEach((row, i) => {
+        const matches = allData.filter(d => (d.folder_key || "").toUpperCase().includes("INK"));
+        if (matches.length > 0) {
+            const match = matches[0];
+            const rowEl = inkForm.section.querySelector(`tr[data-index="${i}"]`);
+            if (rowEl) {
+                rowEl.querySelector('.row-supplier').value = match.location;
+                rowEl.querySelector('.row-location').value = match.location;
+                inkForm.updateRowCascadingFilters(i, true);
+                rowEl.querySelector('.row-state').value = match.state;
+                inkForm.updateRowCascadingFilters(i, true);
+                rowEl.querySelector('.row-zone').value = match.zone;
+                inkForm.updateRowCascadingFilters(i, true);
+                rowEl.querySelector('.grade-search').value = match.grade;
+                row.grade = match.grade;
+                row.price = match.price / 1000;
+                rowEl.querySelector('.row-price-input').value = row.price.toFixed(2);
+            }
+        }
+    });
+    inkForm.recalculate();
 }
 
 let trendChartInstance = null;
@@ -1576,13 +1619,17 @@ function renderMaterialRoster() {
 
         // 2. From Ink Cost Section
         const inkData = forms[1].getData();
-        if (inkData.rate > 0) {
-            selectedMaterials.push({
-                name: 'Ink',
-                grade: 'Process Ink',
-                price: inkData.rate,
-                sku: sku,
-                weightage: inkData.cont
+        if (inkData.rows) {
+            inkData.rows.forEach(row => {
+                if (row.grade && row.price > 0) {
+                    selectedMaterials.push({
+                        name: 'Ink',
+                        grade: row.grade,
+                        price: row.price,
+                        sku: sku,
+                        weightage: row.pct
+                    });
+                }
             });
         }
 
